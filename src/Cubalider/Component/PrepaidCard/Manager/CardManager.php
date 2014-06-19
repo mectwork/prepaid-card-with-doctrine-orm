@@ -7,7 +7,7 @@ use Cubalider\Component\PrepaidCard\Model\Card;
 use Cubalider\Component\PrepaidCard\Model\Category;
 use Cubalider\Component\PrepaidCard\Util\CodeGenerator;
 use Cubalider\Component\PrepaidCard\Util\CodeGeneratorInterface;
-use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\EntityManager;
 
 /**
  * @author Manuel Emilio Carpio <mectwork@gmail.com>
@@ -16,7 +16,7 @@ use Doctrine\ORM\EntityManagerInterface;
 class CardManager implements CardManagerInterface
 {
     /**
-     * @var \Doctrine\ORM\EntityManagerInterface
+     * @var \Doctrine\ORM\EntityManager
      */
     private $em;
 
@@ -33,11 +33,11 @@ class CardManager implements CardManagerInterface
     /**
      * Additionally it creates a repository using $em, for given class
      *
-     * @param EntityManagerInterface $em
+     * @param EntityManager $em
      * @param CodeGeneratorInterface $codeGenerator
      */
     public function __construct(
-        EntityManagerInterface $em,
+        EntityManager $em,
         CodeGeneratorInterface $codeGenerator = null
     )
     {

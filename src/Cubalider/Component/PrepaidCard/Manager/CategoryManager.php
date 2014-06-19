@@ -2,7 +2,7 @@
 
 namespace Cubalider\Component\PrepaidCard\Manager;
 
-use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\EntityManager;
 
 /**
  * @author Manuel Emilio Carpio <mectwork@gmail.com>
@@ -11,7 +11,7 @@ use Doctrine\ORM\EntityManagerInterface;
 class CategoryManager implements CategoryManagerInterface
 {
     /**
-     * @var \Doctrine\ORM\EntityManagerInterface
+     * @var \Doctrine\ORM\EntityManager
      */
     private $em;
 
@@ -24,9 +24,9 @@ class CategoryManager implements CategoryManagerInterface
      * Constructor.
      * Additionally it creates a repository using $em, for given class
      *
-     * @param EntityManagerInterface $em
+     * @param EntityManager $em
      */
-    public function __construct(EntityManagerInterface $em)
+    public function __construct(EntityManager $em)
     {
         $this->em = $em;
         $this->repository = $this->em->getRepository('Cubalider\Component\PrepaidCard\Model\Category');
