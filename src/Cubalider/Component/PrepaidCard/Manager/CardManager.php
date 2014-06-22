@@ -31,7 +31,8 @@ class CardManager implements CardManagerInterface
     private $codeGenerator;
 
     /**
-     * Additionally it creates a repository using $em, for given class
+     * Constructor.
+     * Additionally it creates a repository using $em, for entity class
      *
      * @param EntityManager $em
      * @param CodeGeneratorInterface $codeGenerator

@@ -22,7 +22,7 @@ class CategoryManager implements CategoryManagerInterface
 
     /**
      * Constructor.
-     * Additionally it creates a repository using $em, for given class
+     * Additionally it creates a repository using $em, for entity class
      *
      * @param EntityManager $em
      */

@@ -1,6 +1,6 @@
 {
     "name": "cubalider/prepaid-card-with-doctrine-orm",
-    "description": "Provides an implementation of cubalider/prepaid-card-with-doctrine-orm using doctrine/orm for persistence",
+    "description": "This library provides an implementation of cubalider/prepaid-card-as-abstract using doctrine/orm for persistence",
     "type": "library",
     "keywords": ["card", "prepaid"],
     "license": "MIT",
