@@ -16,7 +16,7 @@
     ],
     "require": {
         "php": ">=5.3.0",
-        "cubalider/prepaid-card-as-abstract": "0.1.*",
+        "cubalider/prepaid-card-as-abstract": "0.2.*",
         "cubalider/money-with-doctrine-orm": "0.1.*",
         "doctrine/orm": "2.4.*"
     },

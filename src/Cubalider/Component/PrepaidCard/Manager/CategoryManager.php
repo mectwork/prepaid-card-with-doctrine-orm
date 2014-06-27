@@ -2,6 +2,7 @@
 
 namespace Cubalider\Component\PrepaidCard\Manager;
 
+use Cubalider\Component\PrepaidCard\Model\Category;
 use Doctrine\ORM\EntityManager;
 
 /**
@@ -38,5 +39,35 @@ class CategoryManager implements CategoryManagerInterface
     public function collect()
     {
         return $this->repository->findAll();
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function add(Category $category)
+    {
+        $this->em->persist($category);
+        $this->em->flush();
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function pick($criteria)
+    {
+        if (is_string($criteria)) {
+            $criteria = array('strid' => $criteria);
+        }
+
+        return $this->repository->findOneBy($criteria);
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function remove(Category $category)
+    {
+        $this->em->remove($category);
+        $this->em->flush();
     }
 }
