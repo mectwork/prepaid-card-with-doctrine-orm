@@ -3,7 +3,9 @@
 namespace Cubalider\Component\PrepaidCard\Manager;
 
 use Cubalider\Component\PrepaidCard\Model\Category;
-use Doctrine\ORM\EntityManager;
+use Doctrine\ORM\EntityManagerInterface;
+use Yosmanyga\Component\Dql\Fit\WhereCriteriaFit;
+use Yosmanyga\Component\Dql\Fit\Builder;
 
 /**
  * @author Manuel Emilio Carpio <mectwork@gmail.com>
@@ -12,25 +14,30 @@ use Doctrine\ORM\EntityManager;
 class CategoryManager implements CategoryManagerInterface
 {
     /**
-     * @var \Doctrine\ORM\EntityManager
+     * @var string
+     */
+    private $class = 'Cubalider\Component\PrepaidCard\Model\Category';
+
+    /**
+     * @var \Doctrine\ORM\EntityManagerInterface
      */
     private $em;
 
     /**
-     * @var \Doctrine\ORM\EntityRepository
+     * @var Builder;
      */
-    private $repository;
+    private $builder;
 
     /**
      * Constructor.
-     * Additionally it creates a repository using $em, for entity class
      *
-     * @param EntityManager $em
+     * @param EntityManagerInterface $em
+     * @param Builder $builder
      */
-    public function __construct(EntityManager $em)
+    public function __construct(EntityManagerInterface $em, Builder $builder = null)
     {
         $this->em = $em;
-        $this->repository = $this->em->getRepository('Cubalider\Component\PrepaidCard\Model\Category');
+        $this->builder = $builder ? : new Builder($em);
     }
 
     /**
@@ -38,7 +45,13 @@ class CategoryManager implements CategoryManagerInterface
      */
     public function collect()
     {
-        return $this->repository->findAll();
+        $qb = $this->builder->build(
+            $this->class
+        );
+
+        return $qb
+            ->getQuery()
+            ->getResult();
     }
 
     /**
@@ -59,7 +72,14 @@ class CategoryManager implements CategoryManagerInterface
             $criteria = array('strid' => $criteria);
         }
 
-        return $this->repository->findOneBy($criteria);
+        $qb = $this->builder->build(
+            $this->class,
+            new WhereCriteriaFit($criteria)
+        );
+
+        return $qb
+            ->getQuery()
+            ->getOneOrNullResult();
     }
 
     /**
