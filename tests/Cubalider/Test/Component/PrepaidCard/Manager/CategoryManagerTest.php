@@ -6,40 +6,42 @@ use Cubalider\Component\Money\Model\Currency;
 use Cubalider\Component\Money\Model\Money;
 use Cubalider\Component\PrepaidCard\Manager\CategoryManager;
 use Cubalider\Component\PrepaidCard\Model\Category;
-use Cubalider\Test\Component\PrepaidCard\EntityManagerBuilder;
-use Doctrine\ORM\EntityManager;
+use Doctrine\ORM\EntityManagerInterface;
+use Yosmanyga\Component\Dql\Fit\Builder;
+use Yosmanyga\Component\Dql\Fit\WhereCriteriaFit;
 
 class CategoryManagerTest extends \PHPUnit_Framework_TestCase
 {
-    /**
-     * @var EntityManager
-     */
-    private $em;
-
-    protected function setUp()
-    {
-        $builder = new EntityManagerBuilder();
-        $this->em = $builder->createEntityManager(
-            array(
-                realpath(sprintf("%s/../../../../../../src/Cubalider/Component/PrepaidCard/Resources/config/doctrine", __DIR__)),
-                realpath(sprintf("%s/../../../../../../vendor/cubalider/money-with-doctrine-orm/src/Cubalider/Component/Money/Resources/config/doctrine", __DIR__))
-            ),
-            array(
-                'Cubalider\Component\PrepaidCard\Model\Category',
-                'Cubalider\Component\Money\Model\Currency'
-            )
-        );
-    }
-
     /**
      * @covers \Cubalider\Component\PrepaidCard\Manager\CategoryManager::__construct
      */
     public function testConstructor()
     {
-        $manager = new CategoryManager($this->em);
+        /** @var \Doctrine\ORM\EntityManager $em */
+        $em = $this->getMockBuilder('Doctrine\ORM\EntityManagerInterface')
+            ->getMock();
+        /** @var \Yosmanyga\Component\Dql\Fit\Builder $builder */
+        $builder = $this->getMockBuilder('Yosmanyga\Component\Dql\Fit\Builder')
+            ->setConstructorArgs(array($em))
+            ->getMock();
+        $manager = new CategoryManager($em, $builder);
 
-        $this->assertAttributeEquals($this->em, 'em', $manager);
-        $this->assertAttributeEquals($this->em->getRepository('Cubalider\Component\PrepaidCard\Model\Category'), 'repository', $manager);
+        $this->assertAttributeEquals($em, 'em', $manager);
+        $this->assertAttributeEquals($builder, 'builder', $manager);
+    }
+
+    /**
+     * @covers \Cubalider\Component\PrepaidCard\Manager\CategoryManager::__construct
+     */
+    public function testConstructorWithDefaultParameters()
+    {
+        /** @var \Doctrine\ORM\EntityManager $em */
+        $em = $this->getMockBuilder('Doctrine\ORM\EntityManagerInterface')
+            ->getMock();
+        /** @var \Doctrine\ORM\EntityManager $em */
+        $manager = new CategoryManager($em);
+
+        $this->assertAttributeEquals(new Builder($em), 'builder', $manager);
     }
 
     /**
@@ -47,33 +49,39 @@ class CategoryManagerTest extends \PHPUnit_Framework_TestCase
      */
     public function testCollect()
     {
-        /* Fixtures */
+        $em = $this->getMock('Doctrine\ORM\EntityManagerInterface');
+        $builder = $this->getMockBuilder('Yosmanyga\Component\Dql\Fit\Builder')
+            ->disableOriginalConstructor()
+            ->getMock();
+        $qb = $this->getMockBuilder('Doctrine\ORM\QueryBuilder')
+            ->disableOriginalConstructor()
+            ->getMock();
+        $query = $this->getMockBuilder('Doctrine\ORM\AbstractQuery')
+            ->disableOriginalConstructor()
+            ->setMethods(array('getResult'))
+            ->getMockForAbstractClass();
+        /** @var \Doctrine\ORM\EntityManager $em */
+        /** @var \Yosmanyga\Component\Dql\Fit\Builder $builder */
+        $manager = new CategoryManager($em, $builder);
 
-        $currency = new Currency('USD', 'Dollar');
-        $this->em->persist($currency);
+        /** @var \PHPUnit_Framework_MockObject_MockObject $builder */
+        $builder
+            ->expects($this->once())
+            ->method('build')
+            ->with(
+                'Cubalider\Component\PrepaidCard\Model\Category'
+            )
+            ->will($this->returnValue($qb));
+        $qb
+            ->expects($this->once())
+            ->method('getQuery')
+            ->will($this->returnValue($query));
+        $query
+            ->expects($this->once())
+            ->method('getResult')
+            ->will($this->returnValue('foobar'));
 
-        $money = new Money(10, $currency);
-
-        $category1 = new Category();
-        $category1->setStrid('c1');
-        $category1->setDescription('desc');
-        $category1->setCost($money);
-        $category1->setUtility($money);
-        $this->em->persist($category1);
-
-        $category2 = new Category();
-        $category2->setStrid('c2');
-        $category2->setDescription('desc');
-        $category2->setCost($money);
-        $category2->setUtility($money);
-        $this->em->persist($category2);
-
-        $this->em->flush();
-
-        /* Test */
-
-        $manager = new CategoryManager($this->em);
-        $this->assertEquals(array($category1, $category2), $manager->collect());
+        $this->assertEquals('foobar', $manager->collect());
     }
 
     /**
@@ -81,98 +89,122 @@ class CategoryManagerTest extends \PHPUnit_Framework_TestCase
      */
     public function testAdd()
     {
-        /* Fixtures */
-
-        $currency = new Currency('USD', 'Dollar');
-        $this->em->persist($currency);
-
-        $money = new Money(10, $currency);
-
+        $em = $this->getMock('Doctrine\ORM\EntityManagerInterface');
         $category = new Category();
-        $category->setStrid('c1');
-        $category->setDescription('desc');
-        $category->setCost($money);
-        $category->setUtility($money);
-        $this->em->persist($category);
+        /** @var \Doctrine\ORM\EntityManager $em */
+        $manager = new CategoryManager($em);
 
-        $this->em->flush();
+        /** @var \PHPUnit_Framework_MockObject_MockObject $em */
+        $em
+            ->expects($this->once())->method('persist')
+            ->with($category);
+        $em
+            ->expects($this->once())->method('flush');
 
-        /* Test */
-
-        $manager = new CategoryManager($this->em);
         $manager->add($category);
-        $repository = $this->em->getRepository('Cubalider\Component\PrepaidCard\Model\Category');
-
-        $this->assertEquals(1, count($repository->findAll()));
-        $this->assertSame($category, $manager->pick(array('strid' => 'c1')));
     }
-
 
     /**
      * @covers \Cubalider\Component\PrepaidCard\Manager\CategoryManager::pick
      */
     public function testPick()
     {
-        /* Fixtures */
+        $em = $this->getMock('Doctrine\ORM\EntityManagerInterface');
+        $builder = $this->getMockBuilder('Yosmanyga\Component\Dql\Fit\Builder')
+            ->disableOriginalConstructor()
+            ->getMock();
+        $criteria = array('foo' => 'bar');
+        $qb = $this->getMockBuilder('Doctrine\ORM\QueryBuilder')
+            ->disableOriginalConstructor()
+            ->getMock();
+        $query = $this->getMockBuilder('Doctrine\ORM\AbstractQuery')
+            ->disableOriginalConstructor()
+            ->setMethods(array('getOneOrNullResult'))
+            ->getMockForAbstractClass();
+        /** @var \Doctrine\ORM\EntityManager $em */
+        /** @var \Yosmanyga\Component\Dql\Fit\Builder $builder */
+        $manager = new CategoryManager($em, $builder);
 
-        $currency = new Currency('USD', 'Dollar');
-        $this->em->persist($currency);
+        /** @var \PHPUnit_Framework_MockObject_MockObject $builder */
+        $builder
+            ->expects($this->once())
+            ->method('build')
+            ->with(
+                'Cubalider\Component\PrepaidCard\Model\Category',
+                new WhereCriteriaFit($criteria)
+            )
+            ->will($this->returnValue($qb));
+        $qb
+            ->expects($this->once())
+            ->method('getQuery')
+            ->will($this->returnValue($query));
+        $query
+            ->expects($this->once())
+            ->method('getOneOrNullResult')
+            ->will($this->returnValue('foobar'));
 
-        $money = new Money(10, $currency);
+        $this->assertEquals('foobar', $manager->pick($criteria));
+    }
 
-        $category1 = new Category();
-        $category1->setStrid('c1');
-        $category1->setDescription('c1-descrip');
-        $category1->setCost($money);
-        $category1->setUtility($money);
-        $this->em->persist($category1);
+    /**
+     * @covers \Cubalider\Component\PrepaidCard\Manager\CategoryManager::pick
+     */
+    public function testPickWithString()
+    {
+        $em = $this->getMock('Doctrine\ORM\EntityManagerInterface');
+        $builder = $this->getMockBuilder('Yosmanyga\Component\Dql\Fit\Builder')
+            ->disableOriginalConstructor()
+            ->getMock();
+        $criteria = 'foo';
+        $qb = $this->getMockBuilder('Doctrine\ORM\QueryBuilder')
+            ->disableOriginalConstructor()
+            ->getMock();
+        $query = $this->getMockBuilder('Doctrine\ORM\AbstractQuery')
+            ->disableOriginalConstructor()
+            ->setMethods(array('getOneOrNullResult'))
+            ->getMockForAbstractClass();
+        /** @var \Doctrine\ORM\EntityManager $em */
+        /** @var \Yosmanyga\Component\Dql\Fit\Builder $builder */
+        $manager = new CategoryManager($em, $builder);
 
-        $category2 = new Category();
-        $category2->setStrid('c2');
-        $category2->setDescription('c2-descrip');
-        $category2->setCost($money);
-        $category2->setUtility($money);
-        $this->em->persist($category2);
+        /** @var \PHPUnit_Framework_MockObject_MockObject $builder */
+        $builder
+            ->expects($this->once())
+            ->method('build')
+            ->with(
+                'Cubalider\Component\PrepaidCard\Model\Category',
+                new WhereCriteriaFit(array('strid' => $criteria))
+            )
+            ->will($this->returnValue($qb));
+        $qb
+            ->expects($this->once())
+            ->method('getQuery')
+            ->will($this->returnValue($query));
+        $query
+            ->expects($this->once())
+            ->method('getOneOrNullResult')
+            ->will($this->returnValue('foobar'));
 
-        $this->em->flush();
-
-        /* Tests */
-
-        $manager = new CategoryManager($this->em);
-        $this->assertEquals($category2, $manager->pick('c2'));
-
-        $manager = new CategoryManager($this->em);
-        $this->assertEquals($category2, $manager->pick(array('strid' => 'c2')));
+        $this->assertEquals('foobar', $manager->pick($criteria));
     }
 
     /**
      * @covers \Cubalider\Component\PrepaidCard\Manager\CategoryManager::remove
      */
-    public function testRemove()
+    public function testDelete()
     {
-        /* Fixtures */
-
-        $currency = new Currency('USD', 'Dollar');
-        $this->em->persist($currency);
-
-        $money = new Money(10, $currency);
-
+        $em = $this->getMock('Doctrine\ORM\EntityManagerInterface');
         $category = new Category();
-        $category->setStrid('c1');
-        $category->setDescription('desc');
-        $category->setCost($money);
-        $category->setUtility($money);
-        $this->em->persist($category);
+        /** @var \Doctrine\ORM\EntityManager $em */
+        $manager = new CategoryManager($em);
 
-        $this->em->flush();
+        /** @var \PHPUnit_Framework_MockObject_MockObject $em */
+        $em
+            ->expects($this->once())->method('remove')
+            ->with($category);
+        $em
+            ->expects($this->once())->method('flush');
 
-        /* Test */
-
-        $manager = new CategoryManager($this->em);
         $manager->remove($category);
-        $repository = $this->em->getRepository('Cubalider\Component\PrepaidCard\Model\Category');
-
-        $this->assertEquals(0, count($repository->findAll()));
-        $this->assertNull($manager->pick(array('strid' => $category->getStrid())));
     }
 }
