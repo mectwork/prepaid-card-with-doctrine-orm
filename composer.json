@@ -18,12 +18,15 @@
         "php": ">=5.3.0",
         "cubalider/prepaid-card-as-abstract": "0.2.*",
         "cubalider/money-with-doctrine-orm": "0.1.*",
-        "doctrine/orm": "2.4.*"
+        "doctrine/orm": "2.4.*",
+        "yosmanyga/dql-fit": "dev-master"
     },
     "require-dev": {
         "phpunit/phpunit": "4.1.*"
     },
     "autoload": {
-        "psr-0": { "Cubalider\\Component\\PrepaidCard": "src/" }
+        "psr-0": {
+            "Cubalider\\Component\\PrepaidCard": "src/"
+        }
     }
 }
