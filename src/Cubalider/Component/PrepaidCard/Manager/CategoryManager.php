@@ -41,7 +41,11 @@ class CategoryManager implements CategoryManagerInterface
     }
 
     /**
-     * @inheritdoc
+     * Gets all categories.
+     *
+     * @api
+     *
+     * @return Category[]
      */
     public function collect()
     {
@@ -55,7 +59,11 @@ class CategoryManager implements CategoryManagerInterface
     }
 
     /**
-     * @inheritdoc
+     * Adds given category.
+     *
+     * @api
+     *
+     * @param Category $category
      */
     public function add(Category $category)
     {
@@ -64,7 +72,14 @@ class CategoryManager implements CategoryManagerInterface
     }
 
     /**
-     * @inheritdoc
+     * Picks a category using given criteria.
+     * Criteria can be also a category strid.
+     *
+     * @api
+     *
+     * @param array|string $criteria
+     *
+     * @return Category The category
      */
     public function pick($criteria)
     {
@@ -83,7 +98,11 @@ class CategoryManager implements CategoryManagerInterface
     }
 
     /**
-     * @inheritdoc
+     * Removes given category.
+     *
+     * @api
+     *
+     * @param Category $category
      */
     public function remove(Category $category)
     {
