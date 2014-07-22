@@ -19,7 +19,8 @@
         "cubalider/prepaid-card-as-abstract": "0.2.*",
         "cubalider/money-with-doctrine-orm": "0.1.*",
         "doctrine/orm": "2.4.*",
-        "yosmanyga/dql-fit": "dev-master"
+        "yosmanyga/dql-fit": "dev-master",
+        "cubalider/code-generator": "dev-master"
     },
     "require-dev": {
         "phpunit/phpunit": "4.1.*"

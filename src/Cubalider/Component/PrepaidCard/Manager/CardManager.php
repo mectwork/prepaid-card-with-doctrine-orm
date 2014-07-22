@@ -2,12 +2,15 @@
 
 namespace Cubalider\Component\PrepaidCard\Manager;
 
-use Cubalider\Component\Money\Model\Money;
 use Cubalider\Component\PrepaidCard\Model\Card;
 use Cubalider\Component\PrepaidCard\Model\Category;
-use Cubalider\Component\PrepaidCard\Util\CodeGenerator;
-use Cubalider\Component\PrepaidCard\Util\CodeGeneratorInterface;
-use Doctrine\ORM\EntityManager;
+use Cubalider\Component\PrepaidCard\Util\CardCodeGenerator;
+use Doctrine\ORM\EntityManagerInterface;
+use Yosmanyga\Component\Dql\Fit\AndFit;
+use Yosmanyga\Component\Dql\Fit\Builder;
+use Yosmanyga\Component\Dql\Fit\LimitFit;
+use Yosmanyga\Component\Dql\Fit\WhereCriteriaFit;
+use Yosmanyga\Component\Dql\Fit\SelectCountFit;
 
 /**
  * @author Manuel Emilio Carpio <mectwork@gmail.com>
@@ -16,35 +19,35 @@ use Doctrine\ORM\EntityManager;
 class CardManager implements CardManagerInterface
 {
     /**
-     * @var \Doctrine\ORM\EntityManager
+     * @var string
+     */
+    private $class = 'Cubalider\Component\PrepaidCard\Model\Card';
+
+    /**
+     * @var \Doctrine\ORM\EntityManagerInterface
      */
     private $em;
 
     /**
-     * @var \Doctrine\ORM\EntityRepository
+     * @var Builder;
      */
-    private $repository;
+    private $builder;
 
     /**
-     * @var \Cubalider\Component\PrepaidCard\Util\CodeGeneratorInterface
+     * @var \Cubalider\Component\PrepaidCard\Util\CardCodeGenerator
      */
     private $codeGenerator;
 
     /**
-     * Constructor.
-     * Additionally it creates a repository using $em, for entity class
-     *
-     * @param EntityManager $em
-     * @param CodeGeneratorInterface $codeGenerator
+     * @param EntityManagerInterface $em
+     * @param Builder $builder
+     * @param CardCodeGenerator $codeGenerator
      */
-    public function __construct(
-        EntityManager $em,
-        CodeGeneratorInterface $codeGenerator = null
-    )
+    public function __construct(EntityManagerInterface $em, Builder $builder = null, CardCodeGenerator $codeGenerator = null)
     {
         $this->em = $em;
-        $this->repository = $this->em->getRepository('Cubalider\Component\PrepaidCard\Model\Card');
-        $this->codeGenerator = $codeGenerator ? : new CodeGenerator();
+        $this->builder = $builder ? : new Builder($em);
+        $this->codeGenerator = $codeGenerator ? : new CardCodeGenerator($em);
     }
 
     /**
@@ -52,14 +55,18 @@ class CardManager implements CardManagerInterface
      */
     public function fetch(Category $category, $amount = 1)
     {
-        $this->prepare($category, $amount);
+         $this->prepare($category, $amount);
+
+        $qb = $this->builder->build(
+            $this->class,
+            new AndFit(array(
+                new WhereCriteriaFit(array('category' => $category->getStrid())),
+                new LimitFit($amount)
+            ))
+        );
 
         /** @var Card[] $cards */
-        $cards = $this->repository->findBy(
-            array('category' => $category),
-            array(),
-            $amount
-        );
+        $cards = $qb->getQuery()->getResult();
 
         for ($i = 0; $i < $amount; $i++) {
             $cards[$i]->setStatus(Card::STATUS_FETCHED);
@@ -85,25 +92,25 @@ class CardManager implements CardManagerInterface
      * supply given amount.
      *
      * @param Category $category
-     * @param int      $amount
+     * @param int $amount
      */
     private function prepare(Category $category, $amount)
     {
-        /** @var \Doctrine\ORM\QueryBuilder $queryBuilder */
-        $queryBuilder = $this->repository->createQueryBuilder('Card');
+        $dq = $this->builder->build(
+            $this->class,
+            new AndFit(array(
+                new SelectCountFit('code'),
+                new WhereCriteriaFit(array('category' => $category->getStrid()))
+            ))
+        );
 
-        $count = $queryBuilder
-            ->select('COUNT(Card)')
-            ->where('Card.category = :category')
-            ->setParameter('category', $category)
-            ->getQuery()
-            ->getSingleScalarResult();
+        $count = $dq->getQuery()->getSingleScalarResult();
 
         $needed = $amount - $count;
         if ($needed > 0) {
             for ($i = 0; $i < $needed; $i++) {
                 $card = new Card();
-                $card->setCode($this->generateCode());
+                $card->setCode($this->codeGenerator->generateCode());
                 $card->setCategory($category);
 
                 $this->em->persist($card);
@@ -111,20 +118,5 @@ class CardManager implements CardManagerInterface
 
             $this->em->flush();
         }
-    }
-
-    /**
-     * Returns a unique code.
-     *
-     * @return string
-     */
-    private function generateCode()
-    {
-        $code = $this->codeGenerator->generate();
-        while ($this->repository->findOneBy(array('code' => $code))) {
-            $code = $this->codeGenerator->generate();
-        }
-
-        return $code;
     }
 }
