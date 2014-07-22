@@ -4,173 +4,141 @@ namespace Cubalider\Test\Component\PrepaidCard\Manager;
 
 use Cubalider\Component\Money\Model\Currency;
 use Cubalider\Component\Money\Model\Money;
+use Cubalider\Component\PrepaidCard\Manager\CardManager;
 use Cubalider\Component\PrepaidCard\Model\Card;
 use Cubalider\Component\PrepaidCard\Model\Category;
-use Cubalider\Component\PrepaidCard\Manager\CardManager;
-use Cubalider\Test\Component\PrepaidCard\EntityManagerBuilder;
-use Doctrine\ORM\EntityManager;
+use Cubalider\Component\PrepaidCard\Util\CardCodeGenerator;
+use Yosmanyga\Component\Dql\Fit\AndFit;
+use Yosmanyga\Component\Dql\Fit\Builder;
+use Yosmanyga\Component\Dql\Fit\LimitFit;
+use Yosmanyga\Component\Dql\Fit\SelectCountFit;
+use Yosmanyga\Component\Dql\Fit\WhereCriteriaFit;
 
 class CardManagerTest extends \PHPUnit_Framework_TestCase
 {
-    /**
-     * @var EntityManager
-     */
-    private $em;
-
-    protected function setUp()
-    {
-        $builder = new EntityManagerBuilder();
-        $this->em = $builder->createEntityManager(
-            array(
-                realpath(sprintf("%s/../../../../../../src/Cubalider/Component/PrepaidCard/Resources/config/doctrine", __DIR__)),
-                realpath(sprintf("%s/../../../../../../vendor/cubalider/money-with-doctrine-orm/src/Cubalider/Component/Money/Resources/config/doctrine", __DIR__))
-            ),
-            array(
-                'Cubalider\Component\PrepaidCard\Model\Category',
-                'Cubalider\Component\PrepaidCard\Model\Card',
-                'Cubalider\Component\Money\Model\Currency'
-            )
-        );
-    }
-
     /**
      * @covers \Cubalider\Component\PrepaidCard\Manager\CardManager::__construct
      */
     public function testConstructor()
     {
-        $manager = new CardManager($this->em);
+        /** @var \Doctrine\ORM\EntityManager $em */
+        $em = $this->getMockBuilder('Doctrine\ORM\EntityManagerInterface')
+            ->getMock();
+        /** @var \Yosmanyga\Component\Dql\Fit\Builder $builder */
+        $builder = $this->getMockBuilder('Yosmanyga\Component\Dql\Fit\Builder')
+            ->setConstructorArgs(array($em))
+            ->getMock();
+        /** @var \Cubalider\Component\PrepaidCard\Util\CardCodeGenerator $codeGenerator */
+        $codeGenerator = $this->getMockBuilder('Cubalider\Component\PrepaidCard\Util\CardCodeGenerator')
+            ->setConstructorArgs(array($em))
+            ->getMock();
 
-        $this->assertAttributeEquals($this->em, 'em', $manager);
-        $this->assertAttributeEquals($this->em->getRepository('Cubalider\Component\PrepaidCard\Model\Card'), 'repository', $manager);
+        $manager = new CardManager($em, $builder, $codeGenerator);
+
+        $this->assertAttributeEquals($em, 'em', $manager);
+        $this->assertAttributeEquals($builder, 'builder', $manager);
+        $this->assertAttributeEquals($codeGenerator, 'codeGenerator', $manager);
+    }
+
+    /**
+     * @covers \Cubalider\Component\PrepaidCard\Manager\CardManager::__construct
+     */
+    public function testConstructorWithDefaultParameters()
+    {
+        /** @var \Doctrine\ORM\EntityManager $em */
+        $em = $this->getMockBuilder('Doctrine\ORM\EntityManagerInterface')
+            ->getMock();
+        /** @var \Doctrine\ORM\EntityManager $em */
+        $manager = new CardManager($em);
+
+        $this->assertAttributeEquals(new Builder($em), 'builder', $manager);
+        $this->assertAttributeEquals(new CardCodeGenerator($em), 'codeGenerator', $manager);
     }
 
     /**
      * @covers \Cubalider\Component\PrepaidCard\Manager\CardManager::fetch
      * @covers \Cubalider\Component\PrepaidCard\Manager\CardManager::prepare
      */
-    public function testFetch()
+    public function testFetchWithPrepareWithoutNeededCard()
     {
-        /* Fixtures */
+        $em = $this->getMock('Doctrine\ORM\EntityManagerInterface');
+        $builder = $this->getMockBuilder('Yosmanyga\Component\Dql\Fit\Builder')
+            ->disableOriginalConstructor()
+            ->getMock();
+        $qb = $this->getMockBuilder('Doctrine\ORM\QueryBuilder')
+            ->disableOriginalConstructor()
+            ->getMock();
+        $queryPrepare = $this->getMockBuilder('Doctrine\ORM\AbstractQuery')
+            ->disableOriginalConstructor()
+            ->setMethods(array('getSingleScalarResult'))
+            ->getMockForAbstractClass();
+        $queryFetch = $this->getMockBuilder('Doctrine\ORM\AbstractQuery')
+            ->disableOriginalConstructor()
+            ->setMethods(array('getResult'))
+            ->getMockForAbstractClass();
 
-        $currency = new Currency('USD', 'Dollar');
-        $this->em->persist($currency);
-
-        $money = new Money(10, $currency);
-
+        /** @var \Doctrine\ORM\EntityManager $em */
+        /** @var \Yosmanyga\Component\Dql\Fit\Builder $builder */
+        $manager = new CardManager($em, $builder);
         $category = new Category();
-        $category->setStrid('c');
-        $category->setDescription('desc');
-        $category->setCost($money);
-        $category->setUtility($money);
-        $this->em->persist($category);
+        $category->setStrid('foo');
+        $amount = 2;
 
-        $card1 = new Card();
-        $card1->setCode('code1');
-        $card1->setCategory($category);
-        $this->em->persist($card1);
+        /** Test prepare() **/
 
-        $card2 = new Card();
-        $card2->setCode('code2');
-        $card2->setCategory($category);
-        $this->em->persist($card2);
+        /** @var \PHPUnit_Framework_MockObject_MockObject $builder */
+        $builder
+            ->expects($this->at(0))
+            ->method('build')
+            ->with(
+                'Cubalider\Component\PrepaidCard\Model\Card',
+                new AndFit(array(
+                    new SelectCountFit('code'),
+                    new WhereCriteriaFit(array('category' => $category->getStrid()))
+                ))
+            )
+            ->will($this->returnValue($qb));
+        $qb
+            ->expects($this->at(0))
+            ->method('getQuery')
+            ->will($this->returnValue($queryPrepare));
+        $queryPrepare
+            ->expects($this->at(0))
+            ->method('getSingleScalarResult')
+            ->will($this->returnValue($amount));
 
-        $card3 = new Card();
-        $card3->setCode('code3');
-        $card3->setCategory($category);
-        $this->em->persist($card3);
+        /** Testing Fetch **/
 
-        $this->em->flush();
+        $cards = array($card1 = new Card(), $card2 = new Card());
 
-        /* Test */
+        /** @var \PHPUnit_Framework_MockObject_MockObject $builder */
+        $builder
+            ->expects($this->at(1))
+            ->method('build')
+            ->with(
+                'Cubalider\Component\PrepaidCard\Model\Card',
+                new AndFit(array(
+                    new WhereCriteriaFit(array('category' => $category->getStrid())),
+                    new LimitFit($amount)
+                ))
+            )
+            ->will($this->returnValue($qb));
+        $qb
+            ->expects($this->at(1))
+            ->method('getQuery')
+            ->will($this->returnValue($queryFetch));
+        $queryFetch
+            ->expects($this->at(0))
+            ->method('getResult')
+            ->will($this->returnValue($cards));
 
-        $manager = new CardManager($this->em);
-        $repository = $this->em->getRepository('Cubalider\Component\PrepaidCard\Model\Card');
+        /** @var \PHPUnit_Framework_MockObject_MockObject $em */
+        $em
+            ->expects($this->once())->method('flush');
 
-        $this->assertEquals(array($card1, $card2), $manager->fetch($category, 2));
+        $this->assertEquals($cards, $manager->fetch($category, $amount));
+        /** @var Card[] $cards */
         $this->assertEquals(Card::STATUS_FETCHED, $card1->getStatus());
-        $this->assertEquals(Card::STATUS_FETCHED, $card2->getStatus());
-        $this->assertEquals(Card::STATUS_NEW, $card3->getStatus());
-        // No card was generated if amount was supplied
-        $this->assertEquals(3, count($repository->findAll()));
-    }
-
-    /**
-     * @covers \Cubalider\Component\PrepaidCard\Manager\CardManager::fetch
-     * @covers \Cubalider\Component\PrepaidCard\Manager\CardManager::prepare
-     * @covers \Cubalider\Component\PrepaidCard\Manager\CardManager::generateCode
-     */
-    public function testFetchWithPrepare()
-    {
-        /* Fixtures */
-
-        $currency = new Currency('USD', 'Dollar');
-        $this->em->persist($currency);
-
-        $money = new Money(10, $currency);
-
-        $category = new Category();
-        $category->setStrid('c');
-        $category->setDescription('desc');
-        $category->setCost($money);
-        $category->setUtility($money);
-        $this->em->persist($category);
-
-        $this->em->flush();
-
-        /* Test */
-
-        $manager = new CardManager($this->em);
-        $repository = $this->em->getRepository('Cubalider\Component\PrepaidCard\Model\Card');
-
-        $manager->fetch($category, 2);
-
-        $this->assertEquals(2, count($repository->findAll()));
-    }
-
-    /**
-     * @covers \Cubalider\Component\PrepaidCard\Manager\CardManager::fetch
-     * @covers \Cubalider\Component\PrepaidCard\Manager\CardManager::prepare
-     * @covers \Cubalider\Component\PrepaidCard\Manager\CardManager::generateCode
-     */
-    public function testFetchWithExistingCodeOnCardGeneration()
-    {
-        /* Fixtures */
-
-        $currency = new Currency('USD', 'Dollar');
-        $this->em->persist($currency);
-
-        $money = new Money(10, $currency);
-
-        $category = new Category();
-        $category->setStrid('c');
-        $category->setDescription('desc');
-        $category->setCost($money);
-        $category->setUtility($money);
-        $this->em->persist($category);
-
-        $card1 = new Card();
-        $card1->setCode('xxx');
-        $card1->setCategory($category);
-        $this->em->persist($card1);
-
-        $this->em->flush();
-
-        /* Test */
-
-        $codeGenerator = $this->getMock('Cubalider\Component\PrepaidCard\Util\CodeGeneratorInterface');
-
-        /** @var \Cubalider\Component\PrepaidCard\Util\CodeGeneratorInterface  $codeGenerator */
-        $manager = new CardManager($this->em, $codeGenerator);
-
-        /** @var \PHPUnit_Framework_MockObject_MockObject  $codeGenerator */
-        $codeGenerator
-            ->expects($this->at(0))->method('generate')
-            ->will($this->returnValue('xxx'));
-        $codeGenerator
-            ->expects($this->at(1))->method('generate')
-            ->will($this->returnValue('yyy'));
-
-        $manager->fetch($category, 2);
     }
 
     /**
@@ -178,28 +146,18 @@ class CardManagerTest extends \PHPUnit_Framework_TestCase
      */
     public function testUtilize()
     {
-        /* Fixtures */
+        $em = $this->getMock('Doctrine\ORM\EntityManagerInterface');
 
-        $currency = new Currency('USD', 'Dollar');
-        $this->em->persist($currency);
-
-        $money = new Money(10, $currency);
-
+        $utility = new Money(0, new Currency('foo', 'USD'));
         $category = new Category();
-        $category->setStrid('c');
-        $category->setDescription('desc');
-        $category->setCost($money);
-        $category->setUtility($money);
-        $this->em->persist($category);
-
+        $category->setUtility($utility);
         $card = new Card();
         $card->setCategory($category);
+        $card->setStatus(Card::STATUS_UTILIZED);
 
-        /* Test */
+        /** @var \Doctrine\ORM\EntityManager $em */
+        $manager = new CardManager($em);
 
-        $manager = new CardManager($this->em);
-
-        $this->assertEquals($money, $manager->utilize($card));
-        $this->assertEquals(Card::STATUS_UTILIZED, $card->getStatus());
+        $this->assertEquals($utility, $manager->utilize($card));
     }
 }
