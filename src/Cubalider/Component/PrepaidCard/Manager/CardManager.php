@@ -51,7 +51,15 @@ class CardManager implements CardManagerInterface
     }
 
     /**
-     * @inheritdoc
+     * Fetches given amount of new cards, of given category.
+     * It marks cards as fetched, so they are not fetched again.
+     *
+     * @api
+     *
+     * @param Category $category
+     * @param integer $amount
+     *
+     * @return Card[]
      */
     public function fetch(Category $category, $amount = 1)
     {
